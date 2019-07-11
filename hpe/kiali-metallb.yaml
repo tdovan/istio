@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiali-lb
+  namespace: istio-system
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 20001
+      targetPort: 20001
+      protocol: TCP
+      name: kiali
+  selector:
+    app: kiali
+

@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: vmhttp
+spec:
+  hosts:
+  - vmhttp.istio-demo.svc.cluster.local
+  ports:
+  - number: 8080
+    name: http
+    protocol: HTTP
+  resolution: STATIC
+  endpoints:
+  - address: 10.202.115.113
+    ports:
+      http: 8080
+    labels:
+      app: vmhttp
+      version: "v1"

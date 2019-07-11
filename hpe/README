@@ -1,0 +1,62 @@
+## Cette demo permet de compendre Istio Service Mesh
+
+# 1 - Installation du control plane sur 1 cluster
+for i in install/kubernetes/helm/istio-init/files/crd*yaml; do kubectl apply -f $i; done
+kubectl apply -f istio-1.1.9/install/kubernetes/istio-demo.yaml
+
+
+--- apply default destination rules
+$ kubectl apply -f samples/bookinfo/networking/destination-rule-all-mtls.yaml
+$ kubectl get destinationrules -o yaml
+kubectl get svc -n istio-system
+kubectl get pods -n istio-system
+
+# 2 - Verification de la UI avec kiali
+
+# 3 - Deploy an app bookinfo
+
+
+
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+echo $GATEWAY_URL
+curl -s http://${GATEWAY_URL}/productpage | grep -o "<title>.*</title>"
+watch -n 1 curl -o /dev/null -s -w %{http_code} $GATEWAY_URL/productpage
+
+# 4 - Deploy update of the app
+k create -f istio-1.1.9/samples/bookinfo/platform/kube/bookinfo-db.yaml -n istio-demo
+k create -f istio-1.1.9/samples/bookinfo/platform/kube/bookinfo-ratings-v2.yaml -n istio-demo
+
+-- redirect trafic to V1
+k apply -f istio-1.1.9/samples/bookinfo/networking/virtual-service-all-v1.yaml -n istio-demo
+k get virtualservices -o yaml -n istio-demo
+kubectl get destinationrules -o yaml
+
+-- redirect trafic baed on user identity
+k apply -f istio-1.1.9/samples/bookinfo/networking/virtual-service-reviews-test-v2.yaml -n istio-demo
+log http://10.202.115.173/productpage using jason account and see that v2 is used
+
+-- redirect 50% to v1 to v3
+kubectl apply -f istio-1.1.9/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml -n istio-demo
+kubectl get virtualservice reviews -o yaml
+
+-- redirect 100% sur v3
+kubectl apply -f istio-1.1.9/samples/bookinfo/networking/virtual-service-reviews-v3.yaml -n istio-demo
+
+--redirect to V3 with mongodb
+k apply -f istio-1.1.9/samples/bookinfo/networking/virtual-service-all-v3.yaml -n istio-demo
+
+
+-- connect k8s to vm using envoy
+- create a serviceentry for the vm
+kubectl -n istio-demo apply -f globalmesh/serviceentry.yaml
+- register in istio - optional
+istioctl  register -n istio-demo vmhttp 10.202.115.113 8080
+on VM:  python -m SimpleHTTPServer 8080
+on k8s:	k -n istio-demo exec -it sleep-754684654f-69f5h -c sleep -- curl vmhttp:8080
+
+
+k -n istio-system describe gateways.networking.istio.io meshexpansion-gateway
+
