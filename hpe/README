@@ -1,5 +1,7 @@
 ## Cette demo permet de compendre Istio Service Mesh
 
+kubectl config set-context $(kubectl config current-context) --namespace=istio-bookinfo
+
 # 1 - Installation du control plane sur 1 cluster
 for i in install/kubernetes/helm/istio-init/files/crd*yaml; do kubectl apply -f $i; done
 kubectl apply -f istio-1.1.9/install/kubernetes/istio-demo.yaml
